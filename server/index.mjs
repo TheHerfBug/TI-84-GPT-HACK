@@ -22,7 +22,7 @@ app.use((req, res, next) => {
 });
 
 // Capture inbound requests (before route handlers so res.on('finish') fires)
-app.use(captureMiddleware());
+// app.use(captureMiddleware());
 
 app.use("/requests", requests());
 app.use("/programs", programs());
