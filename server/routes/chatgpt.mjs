@@ -2,7 +2,6 @@ import express from "express";
 import openai from "openai";
 import jimp from "jimp";
 import crypto from "crypto";
-// import { r2GetJson, r2PutJson } from "../lib/r2.mjs";
 
 const CHAT_KEY = "ti84/chat/db.json";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -42,6 +41,13 @@ export async function chatgpt() {
       apiKey: (process.env.OPENAI_API_KEY || "").trim(),
     }));
 
+  // System prompt allowing brief, clear explanations formatted for TI-84 display
+  const baseSystemPrompt =
+    "You are a helpful AI assistant on a TI-84 calculator. " +
+    "Follow all user instructions directly. When explaining questions or math problems, give clear, concise step-by-step explanations without unnecessary length. " +
+    "Use UPPERCASE letters only. NEVER use LaTeX, backslashes, double quotes, or curly braces. " +
+    "Write fractions as A/B, exponents as X^N, pi as PI, and sqrt as SQRT().";
+
   routes.get("/ask", async (req, res) => {
     const question = req.query.question ?? "";
     if (Array.isArray(question)) {
@@ -56,16 +62,25 @@ export async function chatgpt() {
       if (!hasSid) {
         const isMath = "math" in req.query;
         const systemPrompt = isMath
-          ? "You are a precise math solver for a TI-84 calculator. Compute the EXACT answer. Show ONLY the final numerical result or simplified expression. Use UPPERCASE. NEVER use LaTeX, backslashes, or curly braces. Write fractions as A/B, exponents as X^N, pi as PI, sqrt as SQRT(). Keep under 200 characters."
-          : "You are answering questions on a TI-84 calculator. Keep responses under 100 characters, use UPPERCASE letters only. NEVER use LaTeX, backslashes, or curly braces. Write fractions as A/B, exponents as X^N, pi as PI, sqrt as SQRT().";
+          ? "You are a precise math solver for a TI-84 calculator. Provide the answer with a brief, concise step-by-step explanation. Use UPPERCASE. NEVER use LaTeX, backslashes, or curly braces. Write fractions as A/B, exponents as X^N, pi as PI, sqrt as SQRT()."
+          : baseSystemPrompt;
+
         const result = await getGpt().chat.completions.create({
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: question },
           ],
           model: isMath ? LLM_MODEL_MATH : LLM_MODEL,
+          max_tokens: 250,
         });
-        res.send(result.choices[0]?.message?.content ?? "no response");
+
+        let answer = result.choices[0]?.message?.content ?? "NO RESPONSE";
+        answer = answer
+          .replace(/[\r\n]+/g, " ")
+          .replace(/["\\]/g, "")
+          .toUpperCase();
+
+        res.send(answer);
         return;
       }
 
@@ -89,11 +104,7 @@ export async function chatgpt() {
       }
 
       const messages = [
-        {
-          role: "system",
-          content:
-            "You are answering questions on a TI-84 calculator. Keep responses under 100 characters, use UPPERCASE letters only. NEVER use LaTeX, backslashes, or curly braces. Write fractions as A/B, exponents as X^N, pi as PI, sqrt as SQRT().",
-        },
+        { role: "system", content: baseSystemPrompt },
         ...history.slice(-10),
         { role: "user", content: question },
       ];
@@ -101,17 +112,17 @@ export async function chatgpt() {
       const result = await getGpt().chat.completions.create({ 
         messages, 
         model: LLM_MODEL,
-        max_tokens: 150 // Keeps generation fast to avoid link port timeouts
+        max_tokens: 250 
       });
-      
+
       let answer = result.choices[0]?.message?.content ?? "NO RESPONSE";
-      
+
       // Remove raw line breaks and forbidden characters that freeze TI-BASIC
       answer = answer
         .replace(/[\r\n]+/g, " ")
         .replace(/["\\]/g, "")
         .toUpperCase();
-      
+
       data.conversations[sessionId].messages.push(
         { role: "user", content: question },
         { role: "assistant", content: answer }
@@ -175,20 +186,21 @@ export async function chatgpt() {
           {
             role: "system",
             content:
-              "You are a helpful math tutor, specifically designed to help with basic arithmetic, but also can answer a broad range of math questions from uploaded images. You should provide answers as succinctly as possible, and always under 100 characters. Be as accurate as possible.",
+              "You are a helpful math tutor. Answer the math question accurately from the image with a concise explanation. Keep it brief and to the point.",
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: `${question} Do not explain how you found the answer. If the question is multiple-choice, give the letter answer.`,
+                text: `${question} Provide a brief concise explanation for the answer. If the question is multiple-choice, give the letter answer followed by the brief reason.`,
               },
               { type: "image_url", image_url: { url: `data:image/jpeg;base64,${encoded_image}`, detail: "high" } },
             ],
           },
         ],
         model: LLM_MODEL,
+        max_tokens: 250,
       });
 
       res.send(result.choices[0]?.message?.content ?? "no response");
