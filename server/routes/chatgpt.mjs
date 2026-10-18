@@ -2,7 +2,7 @@ import express from "express";
 import openai from "openai";
 import jimp from "jimp";
 import crypto from "crypto";
-import { r2GetJson, r2PutJson } from "../lib/r2.mjs";
+// import { r2GetJson, r2PutJson } from "../lib/r2.mjs";
 
 const CHAT_KEY = "ti84/chat/db.json";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -20,11 +20,14 @@ const LLM_MODEL_MATH =
   (process.env.LLM_MODEL || "").trim() ||
   "gpt-5.4";
 
+// Persistent memory store while Render is running
+const memoryDb = { conversations: {} };
+
 async function readDb() {
-  return { conversations: {} };
+  return memoryDb;
 }
 async function writeDb(data) {
-  // disabled database logging
+  // Retained automatically in memoryDb
 }
 
 export async function chatgpt() {
