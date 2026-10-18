@@ -98,9 +98,20 @@ export async function chatgpt() {
         { role: "user", content: question },
       ];
 
-      const result = await getGpt().chat.completions.create({ messages, model: LLM_MODEL });
-      const answer = result.choices[0]?.message?.content ?? "NO RESPONSE";
-
+      const result = await getGpt().chat.completions.create({ 
+        messages, 
+        model: LLM_MODEL,
+        max_tokens: 150 // Keeps generation fast to avoid link port timeouts
+      });
+      
+      let answer = result.choices[0]?.message?.content ?? "NO RESPONSE";
+      
+      // Remove raw line breaks and forbidden characters that freeze TI-BASIC
+      answer = answer
+        .replace(/[\r\n]+/g, " ")
+        .replace(/["\\]/g, "")
+        .toUpperCase();
+      
       data.conversations[sessionId].messages.push(
         { role: "user", content: question },
         { role: "assistant", content: answer }
