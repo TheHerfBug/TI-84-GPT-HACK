@@ -21,10 +21,10 @@ const LLM_MODEL_MATH =
   "gpt-5.4";
 
 async function readDb() {
-  return await r2GetJson(CHAT_KEY, { conversations: {} });
+  return { conversations: {} };
 }
 async function writeDb(data) {
-  await r2PutJson(CHAT_KEY, data);
+  // disabled database logging
 }
 
 export async function chatgpt() {
