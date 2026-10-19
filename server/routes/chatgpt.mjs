@@ -71,7 +71,7 @@ export async function chatgpt() {
             { role: "user", content: question },
           ],
           model: isMath ? LLM_MODEL_MATH : LLM_MODEL,
-          max_tokens: 1000,
+          max_completion_tokens: 1000,
         });
 
         let answer = result.choices[0]?.message?.content ?? "NO RESPONSE";
@@ -112,7 +112,7 @@ export async function chatgpt() {
       const result = await getGpt().chat.completions.create({ 
         messages, 
         model: LLM_MODEL,
-        max_tokens: 1000 
+        max_completion_tokens: 1000 
       });
 
       let answer = result.choices[0]?.message?.content ?? "NO RESPONSE";
@@ -200,7 +200,7 @@ export async function chatgpt() {
           },
         ],
         model: LLM_MODEL,
-        max_tokens: 1000,
+        max_completion_tokens: 1000,
       });
 
       res.send(result.choices[0]?.message?.content ?? "no response");
